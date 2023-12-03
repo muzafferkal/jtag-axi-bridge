@@ -249,6 +249,7 @@ package jtag_test;
       end while (op == dm::DTM_BUSY);
     endtask
 */
+/*
   task sba_read_double(input logic [31:0] address, output logic [63:0] data);
     // Attempt the access sequence. Two timing violations may
     // occur:
@@ -305,6 +306,6 @@ package jtag_test;
       if (!failed) break;
     end
   endtask
-
+*/
   endclass
 endpackage

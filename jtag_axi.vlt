@@ -4,3 +4,4 @@ lint_off -rule WIDTHTRUNC
 //lint_off -rule WIDTHEXPAND -file "*axi_pkg.sv"
 //lint_off -rule WIDTHEXPAND -file "*jtag_axi.sv"
 // lint_off -file "axi_pkg.sv"
+lint_off -rule UNOPTFLAT

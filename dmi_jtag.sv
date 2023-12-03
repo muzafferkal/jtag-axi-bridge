@@ -113,7 +113,7 @@ module dmi_jtag #(
   logic          dmi_resp_ready;
 
   typedef struct packed {
-    logic [6:0]  address;
+    logic [16:0]  address;
     logic [31:0] data;
     logic [1:0]  op;
   } dmi_t;
@@ -122,7 +122,7 @@ module dmi_jtag #(
   state_e state_d, state_q;
 
   logic [$bits(dmi_t)-1:0] dr_d, dr_q;
-  logic [6:0] address_d, address_q;
+  logic [16:0] address_d, address_q;
   logic [31:0] data_d, data_q;
 
   dmi_t  dmi;

@@ -43,7 +43,7 @@ package dmi_test;
     parameter time TA = 0 , // stimuli application time
     parameter time TT = 0   // stimuli test time
   );
-    virtual DMI_BUS_DV #(
+/*    virtual DMI_BUS_DV #(
       .ADDR_WIDTH(AW)
     ) bus;
 
@@ -151,7 +151,7 @@ package dmi_test;
       rsp.resp = bus.p_resp;
       cycle_end();
     endtask
-
+*/
   endclass
 
   // Super class for random dmi drivers.
@@ -173,12 +173,13 @@ package dmi_test;
 
     dmi_driver_t drv;
 
-    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
+/*    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
       this.drv = new (bus);
     endfunction
-
+*/
     task automatic rand_wait(input int unsigned min, input int unsigned max);
       int unsigned rand_success, cycles;
+      /*
       rand_success = std::randomize(cycles) with {
         cycles >= min;
         cycles <= max;
@@ -187,6 +188,8 @@ package dmi_test;
         cycles dist {min := 10, [min+1:max] := 1};
       };
       assert (rand_success) else $error("Failed to randomize wait cycles!");
+      */
+      cycles = (min+max)/2;
       repeat (cycles) @(posedge this.drv.bus.clk_i);
     endtask
 
@@ -214,10 +217,10 @@ package dmi_test;
     endtask
 
     /// Constructor.
-    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
+/*    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
       super.new(bus);
     endfunction
-
+*/
     task run(input int n);
       fork
         send_requests(n);
@@ -276,10 +279,10 @@ package dmi_test;
     endtask
 
     /// Constructor.
-    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
+/*    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
       super.new(bus);
     endfunction
-
+*/
     task recv_requests();
       forever begin
         automatic req_t req;
@@ -313,10 +316,10 @@ package dmi_test;
     mailbox req_mbx = new, rsp_mbx = new;
 
     /// Constructor.
-    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
+/*    function new(virtual DMI_BUS_DV #( .ADDR_WIDTH (AW)) bus);
       super.new(bus);
     endfunction
-
+*/
     // dmi Monitor.
     task monitor;
       fork

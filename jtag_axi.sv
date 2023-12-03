@@ -69,7 +69,7 @@ module jtag_axi #(
                       zero0        : '0,
                       idle         : 3'd1, // 1: Enter Run-Test/Idle and leave it immediately
                       dmistat      : error_q, // 0: No error, 2: Op failed, 3: too fast
-                      abits        : 6'd17, // The size of address in dmi
+                      abits        : 6'd18, // The size of address in dmi
                       version      : 4'd1  // Version described in spec version 0.13 (and later?)
                     };
       end
@@ -104,7 +104,7 @@ module jtag_axi #(
   logic          dmi_resp_ready;
 
   typedef struct packed {
-    logic [6:0]  address;
+    logic [16:0]  address;
     logic [31:0] data;
     logic [1:0]  op;
   } dmi_t;
@@ -112,8 +112,10 @@ module jtag_axi #(
   typedef enum logic [2:0] { Idle, Read, WaitReadValid, Write, WaitWriteValid } state_e;
   state_e state_d, state_q;
 
+  initial $display("size of dmi_t is: %d", $bits(dmi_t));
+
   logic [$bits(dmi_t)-1:0] dr_d, dr_q;
-  logic [6:0] address_d, address_q;
+  logic [16:0] address_d, address_q;
   logic [31:0] data_d, data_q;
 
   dmi_t  dmi;
