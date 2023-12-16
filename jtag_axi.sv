@@ -356,8 +356,8 @@ module jtag_axi #(
   );
 
   dmi_axi  u_dmi_axi(
-    .clk_i            (clk_i            ),
-    .rst_ni           (rst_ni           ),
+    .clk              (clk_i            ),
+    .rst_n            (rst_ni           ),
     .axilite          (axilite          ),
     .dmi_rst_n_i      (dmi_rst_n_cdc    ),
     .dmi_req_i        (dmi_req_cdc      ),

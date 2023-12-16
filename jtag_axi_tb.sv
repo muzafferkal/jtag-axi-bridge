@@ -56,14 +56,85 @@ module jtag_axi_tb;
 
     AXI_LITE #(.AXI_ADDR_WIDTH(18), .AXI_DATA_WIDTH(32)) axilite();
   
-    logic clk_i;
-    logic rst_ni;
     logic testmode_i;
     logic tms;
     logic trst_;
     logic tdi;
-    logic tdo;
+    logic td_o;
+    logic tdo_oe;
     logic tdo_en;
+
+    wire tdo = tdo_oe ? td_o : 1'bZ;
+    pullup rpu(tdo);
+
+    localparam GP_ADDR_WIDTH = 4;
+    localparam C_S_AXI_DATA_WIDTH = 32;
+    localparam C_S_AXI_ADDR_WIDTH = 17;
+
+    logic write; //New write request
+    logic [GP_ADDR_WIDTH-1:0] write_addrs; //Address to write
+    logic [C_S_AXI_DATA_WIDTH-1:0] write_data; //Data to write
+    logic write_error; //Indicate an error to master
+    logic write_done; //Indicate to finish write next cycle (ready signal in AXI)
+    logic [(C_S_AXI_DATA_WIDTH/8)-1 : 0] write_strobe;
+    //Read Channel
+    logic read; //New read request
+    logic [GP_ADDR_WIDTH-1:0] read_addrs; //Address to read
+    logic [C_S_AXI_DATA_WIDTH-1:0] read_data; //Read data
+    logic read_error; //Indicate an error to master
+    logic read_done; //Indicate to read_data is valid
+
+    logic [31:0] memory[1024];
+
+    always_latch begin : target_memory
+      if (read) read_data = memory[read_addrs];
+      if (write) memory[write_addrs] = write_data;
+      write_done = 1;
+      write_error = 0;
+      read_done = 1;
+      read_error = 0;
+    end
+
+    axi_lite_slave_v1_0 
+    #(
+      .GP_ADDR_WIDTH      (GP_ADDR_WIDTH     ),
+      .C_S_AXI_DATA_WIDTH (C_S_AXI_DATA_WIDTH),
+      .C_S_AXI_ADDR_WIDTH (C_S_AXI_ADDR_WIDTH)
+    )
+    u_axi_lite_slave_v1_0(
+      .write         (write         ),
+      .write_addrs   (write_addrs   ),
+      .write_data    (write_data    ),
+      .write_error   (write_error   ),
+      .write_done    (write_done    ),
+      .write_strobe  (write_strobe  ),
+      .read          (read          ),
+      .read_addrs    (read_addrs    ),
+      .read_data     (read_data     ),
+      .read_error    (read_error    ),
+      .read_done     (read_done     ),
+      .s_axi_aclk    (clk    ),
+      .s_axi_aresetn (rst_n ),
+      .s_axi_awaddr  (axilite.aw_addr  ),
+      .s_axi_awprot  (axilite.aw_prot  ),
+      .s_axi_awvalid (axilite.aw_valid ),
+      .s_axi_awready (axilite.aw_ready ),
+      .s_axi_wdata   (axilite.w_data   ),
+      .s_axi_wstrb   (axilite.w_strb   ),
+      .s_axi_wvalid  (axilite.w_valid  ),
+      .s_axi_wready  (axilite.w_ready  ),
+      .s_axi_bresp   (axilite.b_resp   ),
+      .s_axi_bvalid  (axilite.b_valid  ),
+      .s_axi_bready  (axilite.b_ready  ),
+      .s_axi_araddr  (axilite.ar_addr  ),
+      .s_axi_arprot  (axilite.ar_prot  ),
+      .s_axi_arvalid (axilite.ar_valid ),
+      .s_axi_arready (axilite.ar_ready ),
+      .s_axi_rdata   (axilite.r_data   ),
+      .s_axi_rresp   (axilite.r_resp   ),
+      .s_axi_rvalid  (axilite.r_valid  ),
+      .s_axi_rready  (axilite.r_ready  )
+    );
 
     jtag_axi 
     #(
@@ -78,10 +149,9 @@ module jtag_axi_tb;
     .tms_i      (tms        ),
     .trst_ni    (trst_      ),
     .td_i       (tdi        ),
-    .td_o       (tdo        ),
-    .tdo_oe_o   (tdo_en     )
+    .td_o       (td_o       ),
+    .tdo_oe_o   (tdo_oe     )
     );
-
 
     parameter IR_LENGTH     =  5;
     parameter MAX_TDO_VEC   = 64;
@@ -225,6 +295,28 @@ module jtag_axi_tb;
         end
     endtask
 
+    reg [MAX_TDO_VEC-1:0]   captured_tdo_vec;
+    initial begin: CAPTURE_TDO
+        integer                 bit_cntr;
+
+        forever begin
+            while(!tdo_en) begin
+                @(posedge tck);
+            end
+            bit_cntr = 0;
+            //captured_tdo_vec = {MAX_TDO_VEC{1'bz}};
+            while(tdo_en) begin
+                captured_tdo_vec[bit_cntr] = tdo;
+                bit_cntr = bit_cntr + 1;
+                //$display("tdo: %d bit_cntr %d cap %X", tdo, bit_cntr, captured_tdo_vec);
+                @(posedge tck);
+            end
+            $display("%t: TDO_CAPTURED: %b", $time, captured_tdo_vec);
+            @(posedge tck);
+            captured_tdo_vec = 0;
+        end
+    end
+
     initial begin
         tdi = 0;
         tms = 0;
@@ -281,8 +373,15 @@ module jtag_axi_tb;
 
         // 
         $display("access DMIACCESS");
+        $display("read address 3");
         jtag_scan_ir(DMIACCESS);
-        jtag_scan_dr({17'h15555, 32'hfaceb00c, 2'h2}, 51, 0);
+        jtag_scan_dr({17'h3, 32'hfaceb00c, 2'h1}, 51, 0);
+        $display("write to address 3");
+        jtag_scan_ir(DMIACCESS);
+        jtag_scan_dr({17'h3, 32'hfaceb00c, 2'h2}, 51, 0);
+        $display("read address 3");
+        jtag_scan_ir(DMIACCESS);
+        jtag_scan_dr({17'h3, 32'hfaceb00c, 2'h1}, 51, 0);
 
         // $display("CONFIG - EXTEST WR");
         // jtag_scan_ir(`EXTEST);
@@ -310,27 +409,6 @@ module jtag_axi_tb;
         // jtag_scan_dr(4'b1111, 4, 0);
         // jtag_scan_dr(4'b1000, 4, 0);
 
-    end
-
-
-    reg [MAX_TDO_VEC-1:0]   captured_tdo_vec;
-    initial begin: CAPTURE_TDO
-        integer                 bit_cntr;
-
-        forever begin
-            while(!tdo_en) begin
-                @(posedge tck);
-            end
-            bit_cntr = 0;
-            captured_tdo_vec = {MAX_TDO_VEC{1'bz}};
-            while(tdo_en) begin
-                captured_tdo_vec[bit_cntr] = tdo;
-                bit_cntr = bit_cntr + 1;
-                @(posedge tck);
-            end
-            $display("%t: TDO_CAPTURED: %b", $time, captured_tdo_vec);
-            @(posedge tck);
-        end
     end
 
 endmodule
